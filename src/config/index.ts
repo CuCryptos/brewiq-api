@@ -47,7 +47,10 @@ function loadConfig() {
 
   if (!result.success) {
     console.error('❌ Invalid environment variables:');
-    console.error(result.error.format());
+    const errors = result.error.flatten().fieldErrors;
+    for (const [field, messages] of Object.entries(errors)) {
+      console.error(`  ${field}: ${messages?.join(', ')}`);
+    }
     process.exit(1);
   }
 
