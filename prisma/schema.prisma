@@ -1,0 +1,604 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum MembershipTier {
+  FREE
+  PRO
+  UNLIMITED
+}
+
+enum BeerTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+enum BreweryType {
+  MICROBREWERY
+  BREWPUB
+  REGIONAL
+  CRAFT
+  MAJOR
+  CONTRACT
+  TAPROOM
+}
+
+enum SightingFormat {
+  DRAFT
+  CAN
+  BOTTLE
+  GROWLER
+  CROWLER
+}
+
+enum SightingFreshness {
+  FRESH
+  RECENT
+  AGED
+  UNKNOWN
+}
+
+enum RecipeType {
+  ORIGINAL
+  CLONE
+}
+
+enum RecipeDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum AchievementCategory {
+  SCANNING
+  REVIEWING
+  SIGHTING
+  SOCIAL
+  COLLECTION
+  SPECIAL
+}
+
+enum AchievementRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  UNPAID
+  TRIALING
+}
+
+enum NotificationType {
+  SIGHTING
+  FOLLOW
+  REVIEW_LIKE
+  ACHIEVEMENT
+  SYSTEM
+  PROMO
+}
+
+// Core Models
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  username        String         @unique
+  passwordHash    String?
+  displayName     String?
+  bio             String?
+  avatarUrl       String?
+  membershipTier  MembershipTier @default(FREE)
+  points          Int            @default(0)
+  level           Int            @default(1)
+  isVerified      Boolean        @default(false)
+  verifyToken     String?
+  resetToken      String?
+  resetTokenExp   DateTime?
+  googleId        String?        @unique
+  githubId        String?        @unique
+  lastLoginAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  reviews         Review[]
+  sightings       Sighting[]
+  sightingConfirms SightingConfirmation[]
+  scans           Scan[]
+  recipes         Recipe[]
+  lists           List[]
+  checkins        Checkin[]
+  notifications   Notification[]
+  reviewVotes     ReviewVote[]
+
+  // Self-referential follow
+  followers       Follow[]       @relation("Following")
+  following       Follow[]       @relation("Followers")
+
+  // Achievements
+  userAchievements UserAchievement[]
+
+  // Saved beers
+  savedBeers      SavedBeer[]
+  wishlistBeers   WishlistBeer[]
+
+  // Subscription
+  subscription    Subscription?
+
+  // Alerts for specific beers
+  beerAlerts      BeerAlert[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model Beer {
+  id              String     @id @default(uuid())
+  name            String
+  slug            String     @unique
+  breweryId       String
+  style           String
+  substyle        String?
+  description     String?
+  abv             Float?
+  ibu             Int?
+  srm             Int?
+  iqScore         Int?       @default(0) // 0-100
+  tier            BeerTier   @default(BRONZE)
+  imageUrl        String?
+  labelUrl        String?
+  flavorTags      String[]
+  foodPairings    String[]
+  availability    String?
+  isRetired       Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  brewery         Brewery    @relation(fields: [breweryId], references: [id])
+  reviews         Review[]
+  sightings       Sighting[]
+  scans           Scan[]
+  checkins        Checkin[]
+  savedBy         SavedBeer[]
+  wishlistedBy    WishlistBeer[]
+  listItems       ListItem[]
+  alerts          BeerAlert[]
+  recipeClones    Recipe[]   @relation("ClonedBeer")
+
+  @@index([slug])
+  @@index([breweryId])
+  @@index([style])
+  @@index([iqScore])
+}
+
+model Brewery {
+  id              String       @id @default(uuid())
+  name            String
+  slug            String       @unique
+  type            BreweryType  @default(CRAFT)
+  description     String?
+  iqScore         Int?         @default(0)
+  logoUrl         String?
+  imageUrl        String?
+  websiteUrl      String?
+
+  // Location
+  address         String?
+  city            String?
+  state           String?
+  country         String       @default("USA")
+  latitude        Float?
+  longitude       Float?
+
+  // Features
+  specialties     String[]
+  hasTaproom      Boolean      @default(false)
+  hasTours        Boolean      @default(false)
+  hasFood         Boolean      @default(false)
+  dogFriendly     Boolean      @default(false)
+
+  foundedYear     Int?
+  isVerified      Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  beers           Beer[]
+
+  @@index([slug])
+  @@index([city, state])
+}
+
+model Review {
+  id              String     @id @default(uuid())
+  userId          String
+  beerId          String
+  rating          Float      // 0-5, allows 0.5 increments
+  content         String?
+  flavorTags      String[]
+  aroma           Float?     // 0-5 sub-ratings
+  appearance      Float?
+  taste           Float?
+  mouthfeel       Float?
+  overall         Float?
+  servingType     String?    // draft, can, bottle, etc.
+  helpfulCount    Int        @default(0)
+  isVerified      Boolean    @default(false) // from confirmed scan
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beer            Beer       @relation(fields: [beerId], references: [id], onDelete: Cascade)
+  votes           ReviewVote[]
+  comments        ReviewComment[]
+
+  @@unique([userId, beerId])
+  @@index([beerId])
+  @@index([userId])
+  @@index([rating])
+}
+
+model ReviewVote {
+  id              String     @id @default(uuid())
+  userId          String
+  reviewId        String
+  isHelpful       Boolean    // true = helpful, false = not helpful
+  createdAt       DateTime   @default(now())
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review          Review     @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reviewId])
+}
+
+model ReviewComment {
+  id              String     @id @default(uuid())
+  reviewId        String
+  userId          String
+  content         String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  review          Review     @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+model Sighting {
+  id              String           @id @default(uuid())
+  userId          String
+  beerId          String
+
+  // Location
+  locationName    String
+  address         String?
+  city            String?
+  state           String?
+  latitude        Float
+  longitude       Float
+
+  // Details
+  price           Float?
+  format          SightingFormat   @default(DRAFT)
+  freshness       SightingFreshness @default(UNKNOWN)
+  notes           String?
+  imageUrl        String?
+
+  // Verification
+  isVerified      Boolean          @default(false)
+  confirmCount    Int              @default(0)
+  reportCount     Int              @default(0)
+  expiresAt       DateTime?        // When the sighting is likely outdated
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beer            Beer             @relation(fields: [beerId], references: [id], onDelete: Cascade)
+  confirmations   SightingConfirmation[]
+
+  @@index([beerId])
+  @@index([latitude, longitude])
+  @@index([city, state])
+  @@index([createdAt])
+}
+
+model SightingConfirmation {
+  id              String     @id @default(uuid())
+  sightingId      String
+  userId          String
+  stillAvailable  Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+
+  sighting        Sighting   @relation(fields: [sightingId], references: [id], onDelete: Cascade)
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sightingId, userId])
+}
+
+model Scan {
+  id              String     @id @default(uuid())
+  userId          String
+  beerId          String?    // Null if beer couldn't be identified
+  imageUrl        String
+  scanType        String     @default("single") // single, menu, shelf
+  confidence      Float?     // 0-1 confidence score
+  rawResponse     Json?      // Full Claude response
+  iqScore         Int?
+  tier            BeerTier?
+  tastingNotes    String?
+  flavorTags      String[]
+  foodPairings    String[]
+  tryNext         String[]   // Recommended beers
+  createdAt       DateTime   @default(now())
+
+  // Relations
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beer            Beer?      @relation(fields: [beerId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([beerId])
+}
+
+model Recipe {
+  id              String           @id @default(uuid())
+  userId          String
+  name            String
+  slug            String           @unique
+  style           String
+  type            RecipeType       @default(ORIGINAL)
+  difficulty      RecipeDifficulty @default(INTERMEDIATE)
+  description     String?
+
+  // Clone reference
+  clonedBeerId    String?
+
+  // Batch info
+  batchSize       Float            @default(5) // gallons
+  boilTime        Int              @default(60) // minutes
+
+  // Stats
+  estimatedOg     Float?           // Original gravity
+  estimatedFg     Float?           // Final gravity
+  estimatedAbv    Float?
+  estimatedIbu    Int?
+  estimatedSrm    Int?
+
+  // Ingredients (stored as JSON arrays)
+  grains          Json             @default("[]")
+  hops            Json             @default("[]")
+  yeast           Json             @default("[]")
+  adjuncts        Json             @default("[]")
+
+  // Process
+  mashTemp        Float?
+  mashTime        Int?
+  fermentTemp     Float?
+  fermentDays     Int?
+  notes           String?
+
+  isPublic        Boolean          @default(true)
+  viewCount       Int              @default(0)
+  brewCount       Int              @default(0) // Times others have brewed it
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clonedBeer      Beer?            @relation("ClonedBeer", fields: [clonedBeerId], references: [id], onDelete: SetNull)
+
+  @@index([slug])
+  @@index([userId])
+  @@index([style])
+}
+
+model Achievement {
+  id              String              @id @default(uuid())
+  name            String              @unique
+  slug            String              @unique
+  description     String
+  category        AchievementCategory
+  rarity          AchievementRarity   @default(COMMON)
+  iconUrl         String?
+  pointsAwarded   Int                 @default(10)
+
+  // Criteria (JSON for flexible conditions)
+  criteria        Json
+
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+
+  // Relations
+  userAchievements UserAchievement[]
+
+  @@index([category])
+  @@index([rarity])
+}
+
+model UserAchievement {
+  id              String      @id @default(uuid())
+  userId          String
+  achievementId   String
+  progress        Int         @default(0) // For progressive achievements
+  unlockedAt      DateTime?
+  createdAt       DateTime    @default(now())
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement     Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+model List {
+  id              String     @id @default(uuid())
+  userId          String
+  name            String
+  slug            String
+  description     String?
+  isPublic        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           ListItem[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+}
+
+model ListItem {
+  id              String     @id @default(uuid())
+  listId          String
+  beerId          String
+  notes           String?
+  order           Int        @default(0)
+  addedAt         DateTime   @default(now())
+
+  list            List       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  beer            Beer       @relation(fields: [beerId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, beerId])
+}
+
+model Checkin {
+  id              String     @id @default(uuid())
+  userId          String
+  beerId          String
+  rating          Float?     // Quick rating 0-5
+  notes           String?
+  locationName    String?
+  latitude        Float?
+  longitude       Float?
+  imageUrl        String?
+  createdAt       DateTime   @default(now())
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beer            Beer       @relation(fields: [beerId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([beerId])
+  @@index([createdAt])
+}
+
+model Follow {
+  id              String     @id @default(uuid())
+  followerId      String
+  followingId     String
+  createdAt       DateTime   @default(now())
+
+  follower        User       @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following       User       @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model SavedBeer {
+  id              String     @id @default(uuid())
+  userId          String
+  beerId          String
+  createdAt       DateTime   @default(now())
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beer            Beer       @relation(fields: [beerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, beerId])
+}
+
+model WishlistBeer {
+  id              String     @id @default(uuid())
+  userId          String
+  beerId          String
+  priority        Int        @default(0) // Higher = more wanted
+  notes           String?
+  createdAt       DateTime   @default(now())
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beer            Beer       @relation(fields: [beerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, beerId])
+}
+
+model BeerAlert {
+  id              String     @id @default(uuid())
+  userId          String
+  beerId          String
+  radius          Float      @default(25) // miles
+  latitude        Float?     // Center point, null = any location
+  longitude       Float?
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  beer            Beer       @relation(fields: [beerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, beerId])
+}
+
+model Notification {
+  id              String           @id @default(uuid())
+  userId          String
+  type            NotificationType
+  title           String
+  message         String
+  data            Json?            // Additional context
+  isRead          Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model Subscription {
+  id                    String             @id @default(uuid())
+  userId                String             @unique
+  stripeCustomerId      String             @unique
+  stripeSubscriptionId  String?            @unique
+  stripePriceId         String?
+  tier                  MembershipTier     @default(FREE)
+  status                SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+}
+
+// Session for refresh tokens (optional - can use Redis instead)
+model RefreshToken {
+  id              String     @id @default(uuid())
+  token           String     @unique
+  userId          String
+  expiresAt       DateTime
+  createdAt       DateTime   @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
