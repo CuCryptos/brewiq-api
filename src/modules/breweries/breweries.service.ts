@@ -16,7 +16,22 @@ export async function createBrewery(input: CreateBreweryInput): Promise<Brewery>
 
   return prisma.brewery.create({
     data: {
-      ...input,
+      name: input.name,
+      type: input.type,
+      description: input.description,
+      websiteUrl: input.websiteUrl,
+      address: input.address,
+      city: input.city,
+      state: input.state,
+      country: input.country,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      hasTaproom: input.hasTaproom,
+      hasTours: input.hasTours,
+      hasFood: input.hasFood,
+      dogFriendly: input.dogFriendly,
+      specialties: input.specialties,
+      foundedYear: input.foundedYear,
       slug,
     },
   });
@@ -130,7 +145,25 @@ export async function updateBrewery(slug: string, input: UpdateBreweryInput): Pr
 
   return prisma.brewery.update({
     where: { slug },
-    data: { ...input, slug: newSlug },
+    data: {
+      name: input.name,
+      type: input.type,
+      description: input.description,
+      websiteUrl: input.websiteUrl,
+      address: input.address,
+      city: input.city,
+      state: input.state,
+      country: input.country,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      hasTaproom: input.hasTaproom,
+      hasTours: input.hasTours,
+      hasFood: input.hasFood,
+      dogFriendly: input.dogFriendly,
+      specialties: input.specialties,
+      foundedYear: input.foundedYear,
+      slug: newSlug,
+    },
   });
 }
 

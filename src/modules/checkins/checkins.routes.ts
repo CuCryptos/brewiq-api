@@ -30,7 +30,7 @@ router.get('/', validate(checkinQuerySchema, 'query'), asyncHandler(async (req, 
 }));
 
 router.delete('/:id', asyncHandler(async (req, res) => {
-  await checkinService.deleteCheckin(req.params.id, req.user!.id);
+  await checkinService.deleteCheckin(req.params.id as string, req.user!.id);
 
   res.json({
     success: true,

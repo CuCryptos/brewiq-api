@@ -36,8 +36,9 @@ router.get('/', validate(paginationSchema, 'query'), asyncHandler(async (req, re
 
 // Mark notification as read
 router.patch('/:id/read', asyncHandler(async (req, res) => {
+  const id = req.params.id as string;
   await prisma.notification.update({
-    where: { id: req.params.id, userId: req.user!.id },
+    where: { id, userId: req.user!.id },
     data: { isRead: true },
   });
 
@@ -62,8 +63,9 @@ router.post('/read-all', asyncHandler(async (req, res) => {
 
 // Delete notification
 router.delete('/:id', asyncHandler(async (req, res) => {
+  const id = req.params.id as string;
   await prisma.notification.delete({
-    where: { id: req.params.id, userId: req.user!.id },
+    where: { id, userId: req.user!.id },
   });
 
   res.json({

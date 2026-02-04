@@ -24,7 +24,7 @@ export const getBeers = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getBeer = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const beer = await beerService.getBeerBySlug(slug);
 
   res.json({
@@ -34,7 +34,7 @@ export const getBeer = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateBeer = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const input: UpdateBeerInput = req.body;
   const beer = await beerService.updateBeer(slug, input);
 
@@ -45,7 +45,7 @@ export const updateBeer = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const deleteBeer = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   await beerService.deleteBeer(slug);
 
   res.json({
@@ -65,7 +65,7 @@ export const getTrendingBeers = asyncHandler(async (req: Request, res: Response)
 });
 
 export const getBeerReviews = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const query = req.query as unknown as BeerQueryInput;
   const result = await beerService.getBeerReviews(slug, query);
 
@@ -76,7 +76,7 @@ export const getBeerReviews = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const saveBeer = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const userId = req.user!.id;
   await beerService.saveBeer(userId, slug);
 
@@ -87,7 +87,7 @@ export const saveBeer = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const unsaveBeer = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const userId = req.user!.id;
   await beerService.unsaveBeer(userId, slug);
 
@@ -98,7 +98,7 @@ export const unsaveBeer = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const addToWishlist = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const userId = req.user!.id;
   const { priority, notes } = req.body;
   await beerService.addToWishlist(userId, slug, priority, notes);
@@ -110,7 +110,7 @@ export const addToWishlist = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const removeFromWishlist = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const userId = req.user!.id;
   await beerService.removeFromWishlist(userId, slug);
 

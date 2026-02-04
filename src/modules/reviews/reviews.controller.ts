@@ -24,7 +24,7 @@ export const getReviews = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getReview = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const review = await reviewService.getReviewById(id);
 
   res.json({
@@ -34,7 +34,7 @@ export const getReview = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateReview = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const input: UpdateReviewInput = req.body;
   const review = await reviewService.updateReview(id, req.user!.id, input);
 
@@ -45,7 +45,7 @@ export const updateReview = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const deleteReview = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   await reviewService.deleteReview(id, req.user!.id);
 
   res.json({
@@ -55,7 +55,7 @@ export const deleteReview = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const voteOnReview = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const input: VoteInput = req.body;
   await reviewService.voteOnReview(id, req.user!.id, input);
 
@@ -66,7 +66,7 @@ export const voteOnReview = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const removeVote = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   await reviewService.removeVote(id, req.user!.id);
 
   res.json({
@@ -76,7 +76,7 @@ export const removeVote = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getComments = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const query = req.query as unknown as ReviewQueryInput;
   const result = await reviewService.getReviewComments(id, query);
 
@@ -87,7 +87,7 @@ export const getComments = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const addComment = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const input: CommentInput = req.body;
   const comment = await reviewService.addComment(id, req.user!.id, input);
 

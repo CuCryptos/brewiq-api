@@ -29,7 +29,7 @@ export const getRecipes = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getRecipe = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const recipe = await recipeService.getRecipeBySlug(slug, req.user?.id);
 
   res.json({
@@ -39,7 +39,7 @@ export const getRecipe = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateRecipe = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const input: UpdateRecipeInput = req.body;
   const recipe = await recipeService.updateRecipe(slug, req.user!.id, input);
 
@@ -50,7 +50,7 @@ export const updateRecipe = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const deleteRecipe = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   await recipeService.deleteRecipe(slug, req.user!.id);
 
   res.json({
@@ -74,7 +74,7 @@ export const generateCloneRecipe = asyncHandler(async (req: Request, res: Respon
 });
 
 export const markBrewed = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   await recipeService.markBrewed(slug);
 
   res.json({

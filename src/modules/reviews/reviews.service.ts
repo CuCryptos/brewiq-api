@@ -29,7 +29,16 @@ export async function createReview(userId: string, input: CreateReviewInput): Pr
   const review = await prisma.review.create({
     data: {
       userId,
-      ...input,
+      beerId: input.beerId,
+      rating: input.rating,
+      content: input.content,
+      flavorTags: input.flavorTags,
+      aroma: input.aroma,
+      appearance: input.appearance,
+      taste: input.taste,
+      mouthfeel: input.mouthfeel,
+      overall: input.overall,
+      servingType: input.servingType,
     },
     include: {
       user: {

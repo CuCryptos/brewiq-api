@@ -26,7 +26,17 @@ export async function createBeer(input: CreateBeerInput): Promise<Beer> {
 
   return prisma.beer.create({
     data: {
-      ...input,
+      name: input.name,
+      breweryId: input.breweryId,
+      style: input.style,
+      substyle: input.substyle,
+      abv: input.abv,
+      ibu: input.ibu,
+      srm: input.srm,
+      description: input.description,
+      flavorTags: input.flavorTags,
+      foodPairings: input.foodPairings,
+      availability: input.availability,
       slug,
     },
   });
@@ -132,7 +142,19 @@ export async function updateBeer(slug: string, input: UpdateBeerInput): Promise<
 
   return prisma.beer.update({
     where: { slug },
-    data: { ...input, slug: newSlug },
+    data: {
+      name: input.name,
+      style: input.style,
+      substyle: input.substyle,
+      abv: input.abv,
+      ibu: input.ibu,
+      srm: input.srm,
+      description: input.description,
+      flavorTags: input.flavorTags,
+      foodPairings: input.foodPairings,
+      availability: input.availability,
+      slug: newSlug,
+    },
   });
 }
 

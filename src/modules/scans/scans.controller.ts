@@ -44,7 +44,7 @@ export const getScanHistory = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const getScan = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const scan = await scanService.getScanById(id, req.user!.id);
 
   res.json({

@@ -41,7 +41,8 @@ router.post('/', authenticate, validate(createListSchema), asyncHandler(async (r
 
 // Get list by username and slug
 router.get('/:username/:slug', optionalAuth, asyncHandler(async (req, res) => {
-  const { username, slug } = req.params;
+  const username = req.params.username as string;
+  const slug = req.params.slug as string;
 
   const user = await prisma.user.findUnique({
     where: { username: username.toLowerCase() },
@@ -62,7 +63,7 @@ router.get('/:username/:slug', optionalAuth, asyncHandler(async (req, res) => {
 
 // Update list
 router.patch('/:slug', authenticate, validate(updateListSchema), asyncHandler(async (req, res) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const input: UpdateListInput = req.body;
   const list = await listService.updateList(req.user!.id, slug, input);
 
@@ -74,7 +75,7 @@ router.patch('/:slug', authenticate, validate(updateListSchema), asyncHandler(as
 
 // Delete list
 router.delete('/:slug', authenticate, asyncHandler(async (req, res) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   await listService.deleteList(req.user!.id, slug);
 
   res.json({
@@ -85,7 +86,7 @@ router.delete('/:slug', authenticate, asyncHandler(async (req, res) => {
 
 // Add beer to list
 router.post('/:slug/beers', authenticate, validate(addToListSchema), asyncHandler(async (req, res) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const input: AddToListInput = req.body;
   const item = await listService.addBeerToList(req.user!.id, slug, input);
 
@@ -97,7 +98,8 @@ router.post('/:slug/beers', authenticate, validate(addToListSchema), asyncHandle
 
 // Remove beer from list
 router.delete('/:slug/beers/:beerId', authenticate, asyncHandler(async (req, res) => {
-  const { slug, beerId } = req.params;
+  const slug = req.params.slug as string;
+  const beerId = req.params.beerId as string;
   await listService.removeBeerFromList(req.user!.id, slug, beerId);
 
   res.json({

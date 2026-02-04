@@ -24,7 +24,7 @@ export const getMyAchievements = asyncHandler(async (req: Request, res: Response
 });
 
 export const getAchievement = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const achievement = await achievementService.getAchievementById(id);
 
   res.json({

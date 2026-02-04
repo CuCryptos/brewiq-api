@@ -48,7 +48,7 @@ export const getNearbySightings = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getSighting = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const sighting = await sightingService.getSightingById(id);
 
   res.json({
@@ -58,7 +58,7 @@ export const getSighting = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const confirmSighting = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const input: ConfirmSightingInput = req.body;
   await sightingService.confirmSighting(id, req.user!.id, input);
 

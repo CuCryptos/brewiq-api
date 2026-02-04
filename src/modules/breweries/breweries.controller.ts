@@ -24,7 +24,7 @@ export const getBreweries = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const getBrewery = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const brewery = await breweryService.getBreweryBySlug(slug);
 
   res.json({
@@ -34,7 +34,7 @@ export const getBrewery = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateBrewery = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const input: UpdateBreweryInput = req.body;
   const brewery = await breweryService.updateBrewery(slug, input);
 
@@ -45,7 +45,7 @@ export const updateBrewery = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const deleteBrewery = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   await breweryService.deleteBrewery(slug);
 
   res.json({
@@ -55,7 +55,7 @@ export const deleteBrewery = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const getBreweryBeers = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = req.params.slug as string;
   const query = req.query as unknown as BreweryQueryInput;
   const result = await breweryService.getBreweryBeers(slug, query);
 

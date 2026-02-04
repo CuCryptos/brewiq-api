@@ -4,7 +4,7 @@ import * as userService from './users.service.js';
 import type { UpdateUserInput, UserQueryInput } from './users.schema.js';
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {
-  const { username } = req.params;
+  const username = req.params.username as string;
   const currentUserId = req.user?.id;
   const user = await userService.getUserByUsername(username, currentUserId);
 
@@ -34,7 +34,7 @@ export const getMyStats = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const followUser = asyncHandler(async (req: Request, res: Response) => {
-  const { username } = req.params;
+  const username = req.params.username as string;
   await userService.followUser(req.user!.id, username);
 
   res.json({
@@ -44,7 +44,7 @@ export const followUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const unfollowUser = asyncHandler(async (req: Request, res: Response) => {
-  const { username } = req.params;
+  const username = req.params.username as string;
   await userService.unfollowUser(req.user!.id, username);
 
   res.json({
@@ -54,7 +54,7 @@ export const unfollowUser = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const getFollowers = asyncHandler(async (req: Request, res: Response) => {
-  const { username } = req.params;
+  const username = req.params.username as string;
   const query = req.query as unknown as UserQueryInput;
   const result = await userService.getFollowers(username, query);
 
@@ -65,7 +65,7 @@ export const getFollowers = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const getFollowing = asyncHandler(async (req: Request, res: Response) => {
-  const { username } = req.params;
+  const username = req.params.username as string;
   const query = req.query as unknown as UserQueryInput;
   const result = await userService.getFollowing(username, query);
 
