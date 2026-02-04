@@ -58,6 +58,24 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
     next();
   });
 
+  // Root route
+  app.get('/', (req, res) => {
+    res.json({
+      name: 'BrewIQ API',
+      version: '1.0.0',
+      description: 'AI-powered beer discovery platform',
+      endpoints: {
+        health: '/health',
+        auth: '/api/auth',
+        beers: '/api/beers',
+        breweries: '/api/breweries',
+        reviews: '/api/reviews',
+        scans: '/api/scans',
+        docs: 'Coming soon',
+      },
+    });
+  });
+
   // Health check (before rate limiter)
   app.get('/health', (req, res) => {
     res.json({
