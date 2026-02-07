@@ -1,7 +1,7 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { config } from './index.js';
+import { logger } from '../utils/logger.js';
 
-// @ts-expect-error - ioredis default export handling
 export const redis = new Redis(config.REDIS_URL, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
@@ -12,14 +12,14 @@ export const redis = new Redis(config.REDIS_URL, {
 });
 
 redis.on('connect', () => {
-  console.log('✅ Redis connected');
+  logger.info('Redis connected');
 });
 
 redis.on('error', (error: Error) => {
-  console.error('❌ Redis error:', error);
+  logger.error('Redis error:', error);
 });
 
 export async function disconnectRedis(): Promise<void> {
   await redis.quit();
-  console.log('Redis disconnected');
+  logger.info('Redis disconnected');
 }

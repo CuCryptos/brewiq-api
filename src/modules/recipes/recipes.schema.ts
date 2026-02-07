@@ -46,6 +46,7 @@ export const recipeQuerySchema = paginationSchema.extend({
   type: z.enum(['ORIGINAL', 'CLONE']).optional(),
   difficulty: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
   userId: z.string().uuid().optional(),
+  sortBy: z.enum(['name', 'style', 'difficulty', 'viewCount', 'brewCount', 'createdAt', 'updatedAt']).optional(),
 });
 
 export const generateCloneSchema = z.object({

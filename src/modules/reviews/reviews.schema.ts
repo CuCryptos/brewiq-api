@@ -22,6 +22,7 @@ export const reviewQuerySchema = paginationSchema.extend({
   minRating: z.coerce.number().min(0).max(5).optional(),
   maxRating: z.coerce.number().min(0).max(5).optional(),
   isVerified: z.coerce.boolean().optional(),
+  sortBy: z.enum(['rating', 'helpfulCount', 'createdAt', 'updatedAt']).optional(),
 });
 
 export const voteSchema = z.object({

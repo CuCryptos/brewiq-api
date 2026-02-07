@@ -2,6 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import { config } from '../../config/index.js';
+import { logger } from '../../utils/logger.js';
 
 export function setupPassport() {
   // Google Strategy
@@ -18,7 +19,7 @@ export function setupPassport() {
         },
       ),
     );
-    console.log('✅ Google OAuth configured');
+    logger.info('Google OAuth configured');
   }
 
   // GitHub Strategy
@@ -40,7 +41,7 @@ export function setupPassport() {
         },
       ),
     );
-    console.log('✅ GitHub OAuth configured');
+    logger.info('GitHub OAuth configured');
   }
 
   // Serialization (not used with JWT, but required by passport)

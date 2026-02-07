@@ -19,12 +19,6 @@ export interface AuthenticatedUser {
   membershipTier: MembershipTier;
 }
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    user?: AuthenticatedUser;
-  }
-}
-
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;

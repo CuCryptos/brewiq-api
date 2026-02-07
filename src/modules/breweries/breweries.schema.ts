@@ -34,6 +34,7 @@ export const breweryQuerySchema = paginationSchema.extend({
   dogFriendly: z.coerce.boolean().optional(),
   near: z.string().optional(), // "lat,lng" format
   radius: z.coerce.number().min(1).max(500).default(50), // miles
+  sortBy: z.enum(['name', 'iqScore', 'foundedYear', 'city', 'state', 'createdAt']).optional(),
 });
 
 export type CreateBreweryInput = z.infer<typeof createBrewerySchema>;

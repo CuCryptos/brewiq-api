@@ -27,6 +27,7 @@ export const beerQuerySchema = paginationSchema.extend({
   maxIbu: z.coerce.number().int().max(1000).optional(),
   tier: z.enum(['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND']).optional(),
   minIqScore: z.coerce.number().int().min(0).max(100).optional(),
+  sortBy: z.enum(['name', 'abv', 'ibu', 'iqScore', 'createdAt', 'updatedAt']).optional(),
 });
 
 export const slugParamSchema = z.object({

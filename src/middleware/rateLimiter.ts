@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import { redis } from '../config/redis.js';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 // Standard API rate limiter
 export const apiLimiter = rateLimit({
@@ -72,7 +72,7 @@ export async function checkScanLimit(
 
 // Custom tier-based rate limiter middleware
 export function tierRateLimiter(feature: string, limits: Record<string, number>) {
-  return async (req: Request, res: Response, next: Function) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     const user = (req as any).user;
 
     if (!user) {

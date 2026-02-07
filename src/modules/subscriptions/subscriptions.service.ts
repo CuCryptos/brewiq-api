@@ -6,8 +6,7 @@ import { logger } from '../../utils/logger.js';
 import type { MembershipTier } from '@prisma/client';
 
 const stripe = config.STRIPE_SECRET_KEY
-  // @ts-expect-error - Stripe API version
-  ? new Stripe(config.STRIPE_SECRET_KEY, { apiVersion: '2024-12-18.acacia' })
+  ? new Stripe(config.STRIPE_SECRET_KEY)
   : null;
 
 export const SUBSCRIPTION_PLANS = [

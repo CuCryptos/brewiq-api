@@ -49,7 +49,8 @@ function loadConfig() {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error('❌ Invalid environment variables:');
+    // Using console.error here because logger depends on config (circular dependency)
+    console.error('Invalid environment variables:');
     const errors = result.error.flatten().fieldErrors;
     for (const [field, messages] of Object.entries(errors)) {
       console.error(`  ${field}: ${messages?.join(', ')}`);

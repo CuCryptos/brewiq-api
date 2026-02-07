@@ -1,13 +1,13 @@
 import { MembershipTier } from '@prisma/client';
 
-declare global {
-  namespace Express {
-    interface User {
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: {
       id: string;
       email: string;
       username: string;
       membershipTier: MembershipTier;
-    }
+    };
   }
 }
 
