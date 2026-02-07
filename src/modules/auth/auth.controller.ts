@@ -148,7 +148,7 @@ export const githubCallback = asyncHandler(async (req: Request, res: Response) =
   const user = req.user as any;
   const result = await authService.findOrCreateOAuthUser('github', {
     id: user.id,
-    email: user.emails?.[0]?.value || `${user.username}@github.local`,
+    email: user.emails?.[0]?.value || `github-${user.id}@users.noreply.brewiq.ai`,
     displayName: user.displayName || user.username,
     avatarUrl: user.photos?.[0]?.value,
   });

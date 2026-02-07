@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
 import { redis } from '../config/redis.js';
 import { Request, Response, NextFunction } from 'express';
 
@@ -8,6 +9,11 @@ export const apiLimiter = rateLimit({
   max: 100, // 100 requests per window
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({
+    // @ts-expect-error - ioredis call() is compatible with sendCommand
+    sendCommand: (...args: string[]) => redis.call(...args),
+    prefix: 'rl:api:',
+  }),
   message: {
     success: false,
     error: 'Too many requests, please try again later',
@@ -21,6 +27,11 @@ export const authLimiter = rateLimit({
   max: 50, // 50 requests per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({
+    // @ts-expect-error - ioredis call() is compatible with sendCommand
+    sendCommand: (...args: string[]) => redis.call(...args),
+    prefix: 'rl:auth:',
+  }),
   message: {
     success: false,
     error: 'Too many authentication attempts, please try again later',

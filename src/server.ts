@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { createServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
+import { v4 as uuid } from 'uuid';
 
 import { config } from './config/index.js';
 import { redis } from './config/redis.js';
@@ -31,10 +32,22 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
   const app = express();
   const httpServer = createServer(app);
 
+  // Build allowed origins list from FRONTEND_URL + CORS_ORIGINS
+  const allowedOrigins = [
+    config.FRONTEND_URL,
+    ...config.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
+  ];
+
   // Socket.IO setup
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: config.FRONTEND_URL,
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -48,7 +61,13 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
     contentSecurityPolicy: false,
   }));
   app.use(cors({
-    origin: config.FRONTEND_URL,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   }));
 
@@ -60,9 +79,17 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
+  // Request ID middleware
+  app.use((req, res, next) => {
+    const requestId = (req.headers['x-request-id'] as string) || uuid();
+    req.requestId = requestId;
+    res.setHeader('X-Request-Id', requestId);
+    next();
+  });
+
   // Request logging
   app.use((req, res, next) => {
-    logger.http(`${req.method} ${req.originalUrl}`);
+    logger.http(`[${req.requestId}] ${req.method} ${req.originalUrl}`);
     next();
   });
 

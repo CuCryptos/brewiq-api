@@ -20,7 +20,7 @@ export const createRecipe = asyncHandler(async (req: Request, res: Response) => 
 
 export const getRecipes = asyncHandler(async (req: Request, res: Response) => {
   const query = req.query as unknown as RecipeQueryInput;
-  const result = await recipeService.getRecipes(query);
+  const result = await recipeService.getRecipes(query, req.user?.id);
 
   res.json({
     success: true,

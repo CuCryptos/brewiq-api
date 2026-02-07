@@ -8,6 +8,7 @@ declare module 'express-serve-static-core' {
       username: string;
       membershipTier: MembershipTier;
     };
+    requestId?: string;
   }
 }
 

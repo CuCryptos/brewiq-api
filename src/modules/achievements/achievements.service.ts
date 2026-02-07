@@ -39,14 +39,16 @@ export async function checkAndAwardAchievements(userId: string): Promise<void> {
     where: { isActive: true },
   });
 
-  for (const achievement of achievements) {
-    const alreadyUnlocked = await prisma.userAchievement.findUnique({
-      where: {
-        userId_achievementId: { userId, achievementId: achievement.id },
-      },
-    });
+  // Batch-fetch all unlocked achievement IDs to avoid N+1 queries
+  const unlockedIds = new Set(
+    (await prisma.userAchievement.findMany({
+      where: { userId, unlockedAt: { not: null } },
+      select: { achievementId: true },
+    })).map(ua => ua.achievementId)
+  );
 
-    if (alreadyUnlocked?.unlockedAt) {
+  for (const achievement of achievements) {
+    if (unlockedIds.has(achievement.id)) {
       continue; // Already has this achievement
     }
 

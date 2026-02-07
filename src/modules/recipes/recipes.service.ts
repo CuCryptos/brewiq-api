@@ -48,7 +48,7 @@ export async function createRecipe(userId: string, input: CreateRecipeInput): Pr
   });
 }
 
-export async function getRecipes(query: RecipeQueryInput): Promise<PaginatedResult<RecipeWithRelations>> {
+export async function getRecipes(query: RecipeQueryInput, requestingUserId?: string): Promise<PaginatedResult<RecipeWithRelations>> {
   const where: Prisma.RecipeWhereInput = {
     isPublic: true,
   };
@@ -75,7 +75,10 @@ export async function getRecipes(query: RecipeQueryInput): Promise<PaginatedResu
 
   if (query.userId) {
     where.userId = query.userId;
-    delete where.isPublic; // Show all recipes for specific user
+    // Only show private recipes when the requesting user views their own
+    if (query.userId === requestingUserId) {
+      delete where.isPublic;
+    }
   }
 
   const [recipes, total] = await Promise.all([
@@ -123,11 +126,17 @@ export async function getRecipeBySlug(slug: string, requestingUserId?: string): 
     throw ApiError.forbidden('This recipe is private');
   }
 
-  // Increment view count
-  await prisma.recipe.update({
-    where: { slug },
-    data: { viewCount: { increment: 1 } },
-  });
+  // Increment view count with per-user dedup (1-hour TTL)
+  if (requestingUserId) {
+    const viewKey = `recipe_view:${slug}:${requestingUserId}`;
+    const alreadyViewed = await redis.set(viewKey, '1', 'EX', 3600, 'NX');
+    if (alreadyViewed) {
+      await prisma.recipe.update({
+        where: { slug },
+        data: { viewCount: { increment: 1 } },
+      });
+    }
+  }
 
   return recipe;
 }

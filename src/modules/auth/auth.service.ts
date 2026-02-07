@@ -151,8 +151,12 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
 }
 
 export async function logout(refreshToken: string): Promise<void> {
-  // Invalidate refresh token in Redis
+  // Look up the userId so we can also remove the reverse index
+  const userId = await redis.get(`refresh:${refreshToken}`);
   await redis.del(`refresh:${refreshToken}`);
+  if (userId) {
+    await redis.del(`user_tokens:${userId}:${refreshToken}`);
+  }
 }
 
 export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
@@ -219,6 +223,13 @@ export async function resetPassword(input: ResetPasswordInput): Promise<void> {
       resetTokenExp: null,
     },
   });
+
+  // Invalidate all existing refresh tokens for this user
+  const userTokenKeys = await redis.keys(`user_tokens:${user.id}:*`);
+  if (userTokenKeys.length > 0) {
+    const refreshKeys = userTokenKeys.map((k) => `refresh:${k.split(':').pop()}`);
+    await redis.del(...userTokenKeys, ...refreshKeys);
+  }
 }
 
 export async function verifyEmail(token: string): Promise<void> {
@@ -329,8 +340,9 @@ async function generateTokens(userId: string, email: string): Promise<AuthTokens
   const accessToken = generateAccessToken({ userId, email });
   const refreshToken = generateRefreshToken({ userId, email });
 
-  // Store refresh token in Redis
+  // Store refresh token in Redis with a reverse index for per-user invalidation
   await redis.setex(`refresh:${refreshToken}`, REFRESH_TOKEN_EXPIRY, userId);
+  await redis.setex(`user_tokens:${userId}:${refreshToken}`, REFRESH_TOKEN_EXPIRY, '1');
 
   return { accessToken, refreshToken };
 }
