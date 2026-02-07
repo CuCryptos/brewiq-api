@@ -31,7 +31,7 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash-image',
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
@@ -67,7 +67,7 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash-image',
         contents: [{ role: 'user', parts: [{ text: safePrompt }] }],
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
