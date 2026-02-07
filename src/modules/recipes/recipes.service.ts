@@ -261,8 +261,9 @@ export async function markBrewed(slug: string): Promise<void> {
 async function generateUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
   let slug = baseSlug;
   let counter = 0;
+  const MAX_ITERATIONS = 100;
 
-  while (true) {
+  while (counter < MAX_ITERATIONS) {
     const candidate = counter === 0 ? slug : `${slug}-${counter}`;
     const existing = await prisma.recipe.findUnique({ where: { slug: candidate } });
 
@@ -271,4 +272,6 @@ async function generateUniqueSlug(baseSlug: string, excludeId?: string): Promise
     }
     counter++;
   }
+
+  throw new Error(`Failed to generate unique slug after ${MAX_ITERATIONS} attempts`);
 }

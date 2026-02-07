@@ -15,15 +15,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@config/*": ["src/config/*"],
-      "@middleware/*": ["src/middleware/*"],
-      "@modules/*": ["src/modules/*"],
-      "@services/*": ["src/services/*"],
-      "@utils/*": ["src/utils/*"]
-    }
+    "baseUrl": "."
   },
   "include": ["src/**/*", "prisma/seed.ts"],
   "exclude": ["node_modules", "dist"]

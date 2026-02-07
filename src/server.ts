@@ -5,6 +5,8 @@ import { createServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 
 import { config } from './config/index.js';
+import { redis } from './config/redis.js';
+import { prisma } from './config/database.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { logger } from './utils/logger.js';
@@ -42,7 +44,9 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
   app.set('trust proxy', 1);
 
   // Security middleware
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: false,
+  }));
   app.use(cors({
     origin: config.FRONTEND_URL,
     credentials: true,
@@ -81,11 +85,29 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
   });
 
   // Health check (before rate limiter)
-  app.get('/health', (req, res) => {
+  app.get('/health', async (req, res) => {
+    const details: { redis: string; database: string } = { redis: 'ok', database: 'ok' };
+    let status = 'healthy';
+
+    try {
+      await redis.ping();
+    } catch {
+      details.redis = 'down';
+      status = 'degraded';
+    }
+
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch {
+      details.database = 'down';
+      status = 'degraded';
+    }
+
     res.json({
-      status: 'healthy',
+      status,
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || '1.0.0',
+      services: details,
     });
   });
 

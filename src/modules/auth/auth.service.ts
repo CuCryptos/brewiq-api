@@ -339,8 +339,9 @@ async function generateUniqueUsername(base: string): Promise<string> {
   const sanitized = base.toLowerCase().replace(/[^a-z0-9]/g, '');
   let username = sanitized.slice(0, 20);
   let counter = 0;
+  const MAX_ITERATIONS = 100;
 
-  while (true) {
+  while (counter < MAX_ITERATIONS) {
     const candidate = counter === 0 ? username : `${username}${counter}`;
     const exists = await prisma.user.findUnique({
       where: { username: candidate },
@@ -350,4 +351,6 @@ async function generateUniqueUsername(base: string): Promise<string> {
     }
     counter++;
   }
+
+  throw new Error(`Failed to generate unique username after ${MAX_ITERATIONS} attempts`);
 }

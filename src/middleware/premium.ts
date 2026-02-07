@@ -23,15 +23,7 @@ export function requireTier(minimumTier: MembershipTier) {
     const requiredLevel = tierLevels[minimumTier];
 
     if (userLevel < requiredLevel) {
-      res.status(403).json({
-        success: false,
-        error: `This feature requires ${minimumTier} membership or higher`,
-        code: 'TIER_REQUIRED',
-        requiredTier: minimumTier,
-        currentTier: user.membershipTier,
-        upgradeUrl: '/subscriptions/plans',
-      });
-      return;
+      throw ApiError.forbidden(`This feature requires ${minimumTier} membership or higher`, 'TIER_REQUIRED');
     }
 
     next();

@@ -4,7 +4,7 @@ import { paginationSchema } from '../../utils/pagination.js';
 export const updateUserSchema = z.object({
   displayName: z.string().max(100).optional(),
   bio: z.string().max(500).optional(),
-  avatarUrl: z.string().url().optional(),
+  avatarUrl: z.string().url().refine((url) => url.startsWith('https://res.cloudinary.com/'), 'Avatar must be uploaded via the app').optional(),
 });
 
 export const userQuerySchema = paginationSchema.extend({

@@ -1,6 +1,7 @@
 import slugifyLib from 'slugify';
 const slugify = (slugifyLib as any).default || slugifyLib;
 import { prisma } from '../../config/database.js';
+import { redis } from '../../config/redis.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { getSkip, paginate, PaginatedResult } from '../../utils/pagination.js';
 import type { CreateBeerInput, UpdateBeerInput, BeerQueryInput } from './beers.schema.js';
@@ -172,10 +173,16 @@ export async function deleteBeer(slug: string): Promise<void> {
 }
 
 export async function getTrendingBeers(limit = 10): Promise<BeerWithRelations[]> {
+  const cacheKey = `trending_beers:${limit}`;
+  const cached = await redis.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
   // Get beers with most activity in last 7 days
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  return prisma.beer.findMany({
+  const beers = await prisma.beer.findMany({
     where: {
       isRetired: false,
       OR: [
@@ -198,6 +205,10 @@ export async function getTrendingBeers(limit = 10): Promise<BeerWithRelations[]>
     ],
     take: limit,
   });
+
+  await redis.setex(cacheKey, 300, JSON.stringify(beers));
+
+  return beers;
 }
 
 export async function getBeerReviews(slug: string, query: BeerQueryInput) {
@@ -278,8 +289,9 @@ export async function removeFromWishlist(userId: string, slug: string): Promise<
 async function generateUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
   let slug = baseSlug;
   let counter = 0;
+  const MAX_ITERATIONS = 100;
 
-  while (true) {
+  while (counter < MAX_ITERATIONS) {
     const candidate = counter === 0 ? slug : `${slug}-${counter}`;
     const existing = await prisma.beer.findUnique({ where: { slug: candidate } });
 
@@ -288,4 +300,6 @@ async function generateUniqueSlug(baseSlug: string, excludeId?: string): Promise
     }
     counter++;
   }
+
+  throw new Error(`Failed to generate unique slug after ${MAX_ITERATIONS} attempts`);
 }

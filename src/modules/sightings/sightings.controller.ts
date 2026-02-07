@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler.js';
+import { ApiError } from '../../utils/ApiError.js';
 import * as sightingService from './sightings.service.js';
 import type { CreateSightingInput, SightingQueryInput, ConfirmSightingInput } from './sightings.schema.js';
 
@@ -27,11 +28,7 @@ export const getNearbySightings = asyncHandler(async (req: Request, res: Respons
   const { lat, lng, radius, limit } = req.query;
 
   if (!lat || !lng) {
-    res.status(400).json({
-      success: false,
-      error: 'lat and lng query parameters are required',
-    });
-    return;
+    throw ApiError.badRequest('lat and lng query parameters are required');
   }
 
   const sightings = await sightingService.getNearbySightings(
