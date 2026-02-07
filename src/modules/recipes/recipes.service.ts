@@ -1,7 +1,7 @@
 import slugifyLib from 'slugify';
 const slugify = (slugifyLib as any).default || slugifyLib;
 import { prisma } from '../../config/database.js';
-import { claudeService } from '../../services/claude.service.js';
+import { claudeService, type CloneRecipeResponse } from '../../services/claude.service.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { getSkip, paginate, PaginatedResult } from '../../utils/pagination.js';
 import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from './recipes.schema.js';
@@ -202,14 +202,14 @@ export async function generateCloneRecipe(
     throw ApiError.notFound('Beer not found');
   }
 
-  // Generate recipe using Claude
-  const recipeData = await claudeService.generateCloneRecipe(
+  // Generate recipe using Claude (returns validated CloneRecipeResponse)
+  const recipeData: CloneRecipeResponse = await claudeService.generateCloneRecipe(
     beer.name,
     beer.brewery.name,
     beer.style,
   );
 
-  // Create recipe in database
+  // Create recipe in database — recipeData is fully typed and validated by Zod
   const baseSlug = slugify(`${beer.name}-clone`, { lower: true, strict: true });
   const slug = await generateUniqueSlug(baseSlug);
 
@@ -217,28 +217,28 @@ export async function generateCloneRecipe(
     data: {
       userId,
       clonedBeerId: beerId,
-      name: (recipeData as any).name || `${beer.name} Clone`,
+      name: recipeData.name || `${beer.name} Clone`,
       slug,
-      style: (recipeData as any).style || beer.style,
+      style: recipeData.style || beer.style,
       type: 'CLONE',
-      difficulty: (recipeData as any).difficulty || 'INTERMEDIATE',
-      description: (recipeData as any).description,
-      batchSize: (recipeData as any).batchSize || 5,
-      boilTime: (recipeData as any).boilTime || 60,
-      estimatedOg: (recipeData as any).estimatedOg,
-      estimatedFg: (recipeData as any).estimatedFg,
-      estimatedAbv: (recipeData as any).estimatedAbv,
-      estimatedIbu: (recipeData as any).estimatedIbu,
-      estimatedSrm: (recipeData as any).estimatedSrm,
-      grains: (recipeData as any).grains || [],
-      hops: (recipeData as any).hops || [],
-      yeast: (recipeData as any).yeast || [],
-      adjuncts: (recipeData as any).adjuncts || [],
-      mashTemp: (recipeData as any).mashTemp,
-      mashTime: (recipeData as any).mashTime,
-      fermentTemp: (recipeData as any).fermentTemp,
-      fermentDays: (recipeData as any).fermentDays,
-      notes: (recipeData as any).notes,
+      difficulty: recipeData.difficulty,
+      description: recipeData.description,
+      batchSize: recipeData.batchSize,
+      boilTime: recipeData.boilTime,
+      estimatedOg: recipeData.estimatedOg,
+      estimatedFg: recipeData.estimatedFg,
+      estimatedAbv: recipeData.estimatedAbv,
+      estimatedIbu: recipeData.estimatedIbu,
+      estimatedSrm: recipeData.estimatedSrm,
+      grains: recipeData.grains,
+      hops: recipeData.hops,
+      yeast: recipeData.yeast,
+      adjuncts: recipeData.adjuncts,
+      mashTemp: recipeData.mashTemp,
+      mashTime: recipeData.mashTime,
+      fermentTemp: recipeData.fermentTemp,
+      fermentDays: recipeData.fermentDays,
+      notes: recipeData.notes,
       isPublic: true,
     },
     include: {

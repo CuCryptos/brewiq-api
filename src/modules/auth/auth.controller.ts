@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
+import { v4 as uuid } from 'uuid';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import * as authService from './auth.service.js';
+import { redis } from '../../config/redis.js';
+import { ApiError } from '../../utils/ApiError.js';
 import type {
   RegisterInput,
   LoginInput,
@@ -9,6 +12,8 @@ import type {
   RefreshTokenInput,
 } from './auth.schema.js';
 import { config } from '../../config/index.js';
+
+const OAUTH_CODE_EXPIRY = 60; // 60 seconds TTL for one-time codes
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const input: RegisterInput = req.body;
@@ -91,11 +96,15 @@ export const googleCallback = asyncHandler(async (req: Request, res: Response) =
     avatarUrl: user.photos?.[0]?.value,
   });
 
-  // Redirect to frontend with tokens
-  const params = new URLSearchParams({
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-  });
+  // Store tokens in Redis under a one-time code (never expose tokens in URLs)
+  const code = uuid();
+  await redis.setex(
+    `oauth_code:${code}`,
+    OAUTH_CODE_EXPIRY,
+    JSON.stringify({ accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user }),
+  );
+
+  const params = new URLSearchParams({ code, provider: 'google' });
   res.redirect(`${config.FRONTEND_URL}/auth/callback?${params}`);
 });
 
@@ -108,12 +117,41 @@ export const githubCallback = asyncHandler(async (req: Request, res: Response) =
     avatarUrl: user.photos?.[0]?.value,
   });
 
-  // Redirect to frontend with tokens
-  const params = new URLSearchParams({
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-  });
+  // Store tokens in Redis under a one-time code (never expose tokens in URLs)
+  const code = uuid();
+  await redis.setex(
+    `oauth_code:${code}`,
+    OAUTH_CODE_EXPIRY,
+    JSON.stringify({ accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user }),
+  );
+
+  const params = new URLSearchParams({ code, provider: 'github' });
   res.redirect(`${config.FRONTEND_URL}/auth/callback?${params}`);
+});
+
+export const exchangeOAuthCode = asyncHandler(async (req: Request, res: Response) => {
+  const { code } = req.body;
+
+  if (!code || typeof code !== 'string') {
+    throw ApiError.badRequest('Authorization code is required', 'MISSING_CODE');
+  }
+
+  const key = `oauth_code:${code}`;
+  const stored = await redis.get(key);
+
+  if (!stored) {
+    throw ApiError.unauthorized('Invalid or expired authorization code', 'INVALID_OAUTH_CODE');
+  }
+
+  // Delete immediately — one-time use only
+  await redis.del(key);
+
+  const data = JSON.parse(stored);
+
+  res.json({
+    success: true,
+    data,
+  });
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {

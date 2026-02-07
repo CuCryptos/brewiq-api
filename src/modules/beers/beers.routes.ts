@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { validate, validateRequest } from '../../middleware/validate.js';
-import { authenticate, optionalAuth } from '../../middleware/auth.js';
+import { authenticate, optionalAuth, requireAdmin } from '../../middleware/auth.js';
 import * as beerController from './beers.controller.js';
 import {
   createBeerSchema,
@@ -17,10 +17,10 @@ router.get('/trending', beerController.getTrendingBeers);
 router.get('/:slug', beerController.getBeer);
 router.get('/:slug/reviews', validate(beerQuerySchema, 'query'), beerController.getBeerReviews);
 
-// Protected routes
-router.post('/', authenticate, validate(createBeerSchema), beerController.createBeer);
-router.patch('/:slug', authenticate, validate(updateBeerSchema), beerController.updateBeer);
-router.delete('/:slug', authenticate, beerController.deleteBeer);
+// Admin-only routes (create/update/delete beers)
+router.post('/', authenticate, requireAdmin, validate(createBeerSchema), beerController.createBeer);
+router.patch('/:slug', authenticate, requireAdmin, validate(updateBeerSchema), beerController.updateBeer);
+router.delete('/:slug', authenticate, requireAdmin, beerController.deleteBeer);
 
 // Save/Wishlist
 router.post('/:slug/save', authenticate, beerController.saveBeer);

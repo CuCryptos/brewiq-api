@@ -6,6 +6,9 @@ import type { JwtPayload } from '../middleware/auth.js';
 
 let io: SocketServer | null = null;
 
+const SOCKET_RATE_LIMIT = 50; // max events per window
+const SOCKET_RATE_WINDOW_MS = 10_000; // 10 second window
+
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   userLocation?: { lat: number; lng: number };
@@ -16,24 +19,41 @@ export function setupWebSocket(socketServer: SocketServer): void {
 
   // Authentication middleware
   io.use((socket: AuthenticatedSocket, next) => {
-    const token = socket.handshake.auth.token;
+    const token = socket.handshake.auth.token || socket.handshake.query.token;
 
-    if (!token) {
-      // Allow anonymous connections for public sighting feed
-      return next();
+    if (!token || typeof token !== 'string') {
+      return next(new Error('Authentication required'));
     }
 
     try {
       const payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
       socket.userId = payload.userId;
+      socket.data.user = { userId: payload.userId, email: payload.email };
       next();
     } catch (error) {
-      next(new Error('Invalid token'));
+      next(new Error('Authentication required'));
     }
   });
 
   io.on('connection', (socket: AuthenticatedSocket) => {
     logger.info(`Socket connected: ${socket.id} (user: ${socket.userId || 'anonymous'})`);
+
+    // Per-socket event rate limiting
+    let eventCount = 0;
+    const rateLimitInterval = setInterval(() => { eventCount = 0; }, SOCKET_RATE_WINDOW_MS);
+    socket.use((_event, next) => {
+      eventCount++;
+      if (eventCount > SOCKET_RATE_LIMIT) {
+        logger.warn(`Socket ${socket.id} rate limited (user: ${socket.userId})`);
+        next(new Error('Rate limit exceeded'));
+        return;
+      }
+      next();
+    });
+    socket.on('disconnect', () => {
+      clearInterval(rateLimitInterval);
+      logger.info(`Socket disconnected: ${socket.id}`);
+    });
 
     // Join user-specific room if authenticated
     if (socket.userId) {
@@ -61,11 +81,6 @@ export function setupWebSocket(socketServer: SocketServer): void {
     // Unsubscribe from beer
     socket.on('unsubscribe:beer', (beerId: string) => {
       socket.leave(`beer:${beerId}`);
-    });
-
-    // Handle disconnection
-    socket.on('disconnect', () => {
-      logger.info(`Socket disconnected: ${socket.id}`);
     });
   });
 

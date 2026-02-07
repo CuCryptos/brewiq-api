@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { authenticate, optionalAuth } from '../../middleware/auth.js';
-import { requirePro } from '../../middleware/premium.js';
+import { requirePro, requireTier } from '../../middleware/premium.js';
 import * as recipeController from './recipes.controller.js';
 import {
   createRecipeSchema,
@@ -26,6 +26,7 @@ router.post('/:slug/brewed', authenticate, recipeController.markBrewed);
 router.post(
   '/generate-clone',
   authenticate,
+  requireTier('PRO'),
   validate(generateCloneSchema),
   recipeController.generateCloneRecipe,
 );

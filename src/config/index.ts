@@ -40,6 +40,9 @@ const envSchema = z.object({
   // Resend
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('BrewIQ <noreply@brewiq.ai>'),
+
+  // Admin
+  ADMIN_EMAILS: z.string().default(''),
 });
 
 function loadConfig() {

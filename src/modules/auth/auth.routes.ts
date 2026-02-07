@@ -33,6 +33,9 @@ router.get('/verify-email/:token', authController.verifyEmail);
 // Current user
 router.get('/me', authenticate, authController.me);
 
+// OAuth code exchange (frontend sends the one-time code to get tokens)
+router.post('/oauth/exchange', authController.exchangeOAuthCode);
+
 // Google OAuth
 router.get(
   '/google',

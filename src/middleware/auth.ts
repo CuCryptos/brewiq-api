@@ -25,20 +25,30 @@ declare module 'express-serve-static-core' {
   }
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader?.startsWith('Bearer ')) {
-    throw ApiError.unauthorized('No token provided', 'NO_TOKEN');
-  }
-
-  const token = authHeader.substring(7);
-
+export async function authenticate(req: Request, res: Response, next: NextFunction) {
   try {
-    const payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
+    const authHeader = req.headers.authorization;
 
-    // Fetch user from database
-    prisma.user.findUnique({
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw ApiError.unauthorized('No token provided', 'NO_TOKEN');
+    }
+
+    const token = authHeader.substring(7);
+
+    let payload: JwtPayload;
+    try {
+      payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        throw ApiError.unauthorized('Token expired', 'TOKEN_EXPIRED');
+      }
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw ApiError.unauthorized('Invalid token', 'INVALID_TOKEN');
+      }
+      throw error;
+    }
+
+    const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       select: {
         id: true,
@@ -46,43 +56,31 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
         username: true,
         membershipTier: true,
       },
-    }).then((user) => {
-      if (!user) {
-        res.status(401).json({
-          success: false,
-          error: 'User not found',
-          code: 'USER_NOT_FOUND',
-        });
-        return;
-      }
+    });
 
-      req.user = user;
-      next();
-    }).catch(next);
+    if (!user) {
+      throw ApiError.unauthorized('User not found', 'USER_NOT_FOUND');
+    }
+
+    req.user = user;
+    next();
   } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      throw ApiError.unauthorized('Token expired', 'TOKEN_EXPIRED');
-    }
-    if (error instanceof jwt.JsonWebTokenError) {
-      throw ApiError.unauthorized('Invalid token', 'INVALID_TOKEN');
-    }
-    throw error;
+    next(error);
   }
 }
 
-export function optionalAuth(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader?.startsWith('Bearer ')) {
-    return next();
-  }
-
-  const token = authHeader.substring(7);
-
+export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
   try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.substring(7);
     const payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
 
-    prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       select: {
         id: true,
@@ -90,15 +88,37 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction) {
         username: true,
         membershipTier: true,
       },
-    }).then((user) => {
-      if (user) {
-        req.user = user;
-      }
-      next();
-    }).catch(() => next());
+    });
+
+    if (user) {
+      req.user = user;
+    }
+
+    next();
   } catch {
     next();
   }
+}
+
+const adminEmails = new Set(
+  config.ADMIN_EMAILS
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const user = req.user;
+
+  if (!user) {
+    throw ApiError.unauthorized('Authentication required');
+  }
+
+  if (!adminEmails.has(user.email.toLowerCase())) {
+    throw ApiError.forbidden('Admin access required', 'ADMIN_REQUIRED');
+  }
+
+  next();
 }
 
 export function generateAccessToken(payload: Omit<JwtPayload, 'iat' | 'exp'>): string {

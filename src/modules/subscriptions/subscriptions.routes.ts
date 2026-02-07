@@ -1,4 +1,4 @@
-import { Router, raw } from 'express';
+import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { authenticate } from '../../middleware/auth.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
@@ -53,8 +53,8 @@ router.post('/portal', authenticate, asyncHandler(async (req, res) => {
   });
 }));
 
-// Stripe webhook
-router.post('/webhook', raw({ type: 'application/json' }), asyncHandler(async (req, res) => {
+// Stripe webhook (raw body parsing handled globally in server.ts before express.json)
+router.post('/webhook', asyncHandler(async (req, res) => {
   const signature = req.headers['stripe-signature'] as string;
   await subscriptionService.handleWebhook(req.body, signature);
 

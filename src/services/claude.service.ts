@@ -1,10 +1,91 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { z } from 'zod';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
 const anthropic = new Anthropic({
   apiKey: config.ANTHROPIC_API_KEY,
 });
+
+// --- Zod schemas for validating Claude AI responses ---
+
+const beerInfoSchema = z.object({
+  name: z.string(),
+  brewery: z.string(),
+  style: z.string(),
+  abv: z.number().optional(),
+  ibu: z.number().optional(),
+}).nullable();
+
+const beerScanResponseSchema = z.object({
+  identified: z.boolean().default(false),
+  confidence: z.number().min(0).max(1).default(0),
+  beer: beerInfoSchema.default(null),
+  iqScore: z.number().min(0).max(100).default(50),
+  tier: z.enum(['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND']).default('BRONZE'),
+  tastingNotes: z.string().default(''),
+  flavorTags: z.array(z.string()).default([]),
+  foodPairings: z.array(z.string()).default([]),
+  tryNext: z.array(z.string()).default([]),
+});
+
+const menuBeerSchema = z.object({
+  name: z.string(),
+  brewery: z.string().optional(),
+  style: z.string().optional(),
+  abv: z.number().optional(),
+  price: z.number().optional(),
+  description: z.string().optional(),
+});
+
+const menuScanResponseSchema = z.object({
+  beers: z.array(menuBeerSchema).default([]),
+  venueType: z.string().optional(),
+  storeType: z.string().optional(),
+});
+
+export const cloneRecipeResponseSchema = z.object({
+  name: z.string(),
+  style: z.string(),
+  difficulty: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).default('INTERMEDIATE'),
+  description: z.string().optional(),
+  batchSize: z.number().default(5),
+  boilTime: z.number().default(60),
+  estimatedOg: z.number().optional(),
+  estimatedFg: z.number().optional(),
+  estimatedAbv: z.number().optional(),
+  estimatedIbu: z.number().optional(),
+  estimatedSrm: z.number().optional(),
+  grains: z.array(z.object({
+    name: z.string(),
+    amount: z.number(),
+    unit: z.string(),
+  })).default([]),
+  hops: z.array(z.object({
+    name: z.string(),
+    amount: z.number(),
+    unit: z.string(),
+    time: z.number().optional(),
+    use: z.string().optional(),
+  })).default([]),
+  yeast: z.array(z.object({
+    name: z.string(),
+    amount: z.number().optional(),
+    unit: z.string().optional(),
+  })).default([]),
+  adjuncts: z.array(z.object({
+    name: z.string(),
+    amount: z.number().optional(),
+    unit: z.string().optional(),
+  })).default([]),
+  mashTemp: z.number().optional(),
+  mashTime: z.number().optional(),
+  fermentTemp: z.number().optional(),
+  fermentDays: z.number().optional(),
+  notes: z.string().optional(),
+});
+
+export type CloneRecipeResponse = z.infer<typeof cloneRecipeResponseSchema>;
 
 export interface BeerScanResult {
   identified: boolean;
@@ -36,6 +117,24 @@ export interface MenuScanResult {
   }>;
   venueType?: string;
   rawResponse: object;
+}
+
+function parseAndValidate<T>(raw: string, schema: z.ZodType<T>, label: string): T {
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error(`No JSON found in ${label} response`);
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  const result = schema.safeParse(parsed);
+
+  if (!result.success) {
+    logger.warn(`${label} response validation issues: ${result.error.message}`);
+    // Use defaults from schema for invalid fields rather than crashing
+    return schema.parse(parsed);
+  }
+
+  return result.data;
 }
 
 const BEER_SCAN_PROMPT = `You are a beer expert AI. Analyze this beer image (label, can, bottle, or tap handle) and provide detailed information.
@@ -137,24 +236,23 @@ export const claudeService = {
         throw new Error('No text response from Claude');
       }
 
-      const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
+      const validated = parseAndValidate(textContent.text, beerScanResponseSchema, 'beer scan');
 
-      const result = JSON.parse(jsonMatch[0]);
+      const beer = validated.beer
+        ? { name: validated.beer.name ?? '', brewery: validated.beer.brewery ?? '', style: validated.beer.style ?? '', abv: validated.beer.abv, ibu: validated.beer.ibu }
+        : null;
 
       return {
-        identified: result.identified ?? false,
-        confidence: result.confidence ?? 0,
-        beer: result.beer,
-        iqScore: result.iqScore ?? 50,
-        tier: result.tier ?? 'BRONZE',
-        tastingNotes: result.tastingNotes ?? '',
-        flavorTags: result.flavorTags ?? [],
-        foodPairings: result.foodPairings ?? [],
-        tryNext: result.tryNext ?? [],
-        rawResponse: result,
+        identified: validated.identified ?? false,
+        confidence: validated.confidence ?? 0,
+        beer,
+        iqScore: validated.iqScore ?? 50,
+        tier: validated.tier ?? 'BRONZE',
+        tastingNotes: validated.tastingNotes ?? '',
+        flavorTags: validated.flavorTags ?? [],
+        foodPairings: validated.foodPairings ?? [],
+        tryNext: validated.tryNext ?? [],
+        rawResponse: validated,
       };
     } catch (error) {
       logger.error('Claude scan error:', error);
@@ -193,17 +291,12 @@ export const claudeService = {
         throw new Error('No text response from Claude');
       }
 
-      const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
-
-      const result = JSON.parse(jsonMatch[0]);
+      const validated = parseAndValidate(textContent.text, menuScanResponseSchema, 'menu scan');
 
       return {
-        beers: result.beers ?? [],
-        venueType: result.venueType,
-        rawResponse: result,
+        beers: validated.beers.map((b) => ({ ...b, name: b.name ?? '' })),
+        venueType: validated.venueType,
+        rawResponse: validated,
       };
     } catch (error) {
       logger.error('Claude menu scan error:', error);
@@ -242,17 +335,12 @@ export const claudeService = {
         throw new Error('No text response from Claude');
       }
 
-      const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
-
-      const result = JSON.parse(jsonMatch[0]);
+      const validated = parseAndValidate(textContent.text, menuScanResponseSchema, 'shelf scan');
 
       return {
-        beers: result.beers ?? [],
-        venueType: result.storeType,
-        rawResponse: result,
+        beers: validated.beers.map((b) => ({ ...b, name: b.name ?? '' })),
+        venueType: validated.storeType,
+        rawResponse: validated,
       };
     } catch (error) {
       logger.error('Claude shelf scan error:', error);
@@ -260,7 +348,7 @@ export const claudeService = {
     }
   },
 
-  async generateCloneRecipe(beerName: string, brewery: string, style: string): Promise<object> {
+  async generateCloneRecipe(beerName: string, brewery: string, style: string): Promise<CloneRecipeResponse> {
     try {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
@@ -308,12 +396,7 @@ Return a JSON object with this structure:
         throw new Error('No text response from Claude');
       }
 
-      const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
-
-      return JSON.parse(jsonMatch[0]);
+      return parseAndValidate(textContent.text, cloneRecipeResponseSchema, 'clone recipe');
     } catch (error) {
       logger.error('Claude clone recipe error:', error);
       throw error;

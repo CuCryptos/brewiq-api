@@ -18,6 +18,8 @@ import type {
 
 const SALT_ROUNDS = 12;
 const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_TTL = 900; // 15 minutes in seconds
 
 export interface AuthTokens {
   accessToken: string;
@@ -91,6 +93,17 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
 }
 
 export async function login(input: LoginInput): Promise<AuthResponse> {
+  const lockoutKey = `login_attempts:${input.email.toLowerCase()}`;
+
+  // Check for account lockout
+  const attempts = await redis.get(lockoutKey);
+  if (attempts && parseInt(attempts, 10) >= MAX_LOGIN_ATTEMPTS) {
+    throw ApiError.tooManyRequests(
+      'Too many login attempts. Please try again in 15 minutes.',
+      'ACCOUNT_LOCKED',
+    );
+  }
+
   // Find user
   const user = await prisma.user.findUnique({
     where: { email: input.email.toLowerCase() },
@@ -108,14 +121,21 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
   });
 
   if (!user || !user.passwordHash) {
+    await redis.incr(lockoutKey);
+    await redis.expire(lockoutKey, LOGIN_LOCKOUT_TTL);
     throw ApiError.unauthorized('Invalid email or password', 'INVALID_CREDENTIALS');
   }
 
   // Verify password
   const isValid = await bcrypt.compare(input.password, user.passwordHash);
   if (!isValid) {
+    await redis.incr(lockoutKey);
+    await redis.expire(lockoutKey, LOGIN_LOCKOUT_TTL);
     throw ApiError.unauthorized('Invalid email or password', 'INVALID_CREDENTIALS');
   }
+
+  // Clear lockout counter on successful login
+  await redis.del(lockoutKey);
 
   // Update last login
   await prisma.user.update({

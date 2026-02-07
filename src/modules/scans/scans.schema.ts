@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { paginationSchema } from '../../utils/pagination.js';
 
 export const scanBeerSchema = z.object({
-  image: z.string().min(1, 'Image data is required'),
+  image: z.string().min(1, 'Image data is required').max(14_000_000, 'Image exceeds 10MB limit'),
   mediaType: z.enum(['image/jpeg', 'image/png', 'image/gif', 'image/webp']).default('image/jpeg'),
 });
 

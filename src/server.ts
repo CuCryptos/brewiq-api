@@ -48,7 +48,11 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
     credentials: true,
   }));
 
-  // Body parsing
+  // Stripe webhook must be registered BEFORE express.json() so the raw body
+  // is preserved for signature verification.
+  app.use('/api/subscriptions/webhook', express.raw({ type: 'application/json' }));
+
+  // Body parsing (skips the webhook path above since it's already handled)
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
@@ -103,9 +107,6 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/leaderboard', leaderboardRoutes);
   app.use('/api/subscriptions', subscriptionRoutes);
-
-  // Stripe webhook (raw body needed)
-  app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 
   // 404 handler
   app.use(notFoundHandler);
