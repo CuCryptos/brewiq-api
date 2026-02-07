@@ -5,6 +5,7 @@ import * as sightingController from './sightings.controller.js';
 import {
   createSightingSchema,
   sightingQuerySchema,
+  nearbySightingsSchema,
   confirmSightingSchema,
 } from './sightings.schema.js';
 
@@ -12,7 +13,7 @@ const router = Router();
 
 // Public routes
 router.get('/', validate(sightingQuerySchema, 'query'), sightingController.getSightings);
-router.get('/nearby', sightingController.getNearbySightings);
+router.get('/nearby', validate(nearbySightingsSchema, 'query'), sightingController.getNearbySightings);
 router.get('/:id', sightingController.getSighting);
 
 // Protected routes

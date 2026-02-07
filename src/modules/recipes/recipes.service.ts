@@ -1,6 +1,7 @@
 import slugifyLib from 'slugify';
 const slugify = (slugifyLib as any).default || slugifyLib;
 import { prisma } from '../../config/database.js';
+import { redis } from '../../config/redis.js';
 import { claudeService, type CloneRecipeResponse } from '../../services/claude.service.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { getSkip, paginate, PaginatedResult } from '../../utils/pagination.js';
@@ -251,7 +252,15 @@ export async function generateCloneRecipe(
   return recipe;
 }
 
-export async function markBrewed(slug: string): Promise<void> {
+export async function markBrewed(slug: string, userId: string): Promise<void> {
+  const redisKey = `brewed:${userId}:${slug}`;
+  const alreadyBrewed = await redis.get(redisKey);
+
+  if (alreadyBrewed) {
+    throw ApiError.conflict('You have already marked this recipe as brewed');
+  }
+
+  await redis.set(redisKey, '1');
   await prisma.recipe.update({
     where: { slug },
     data: { brewCount: { increment: 1 } },

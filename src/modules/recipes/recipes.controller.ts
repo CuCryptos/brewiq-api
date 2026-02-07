@@ -75,7 +75,7 @@ export const generateCloneRecipe = asyncHandler(async (req: Request, res: Respon
 
 export const markBrewed = asyncHandler(async (req: Request, res: Response) => {
   const slug = req.params.slug as string;
-  await recipeService.markBrewed(slug);
+  await recipeService.markBrewed(slug, req.user!.id);
 
   res.json({
     success: true,

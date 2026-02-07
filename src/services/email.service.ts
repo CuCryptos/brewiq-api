@@ -2,6 +2,15 @@ import { Resend } from 'resend';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 const resend = config.RESEND_API_KEY ? new Resend(config.RESEND_API_KEY) : null;
 
 export const emailService = {
@@ -41,11 +50,11 @@ export const emailService = {
   async sendBeerSightingAlert(to: string, beerName: string, location: string): Promise<void> {
     await this.send({
       to,
-      subject: `🍺 ${beerName} spotted near you!`,
+      subject: `🍺 ${escapeHtml(beerName)} spotted near you!`,
       html: `
         <h1>Beer Alert!</h1>
-        <p><strong>${beerName}</strong> was just spotted at:</p>
-        <p style="font-size: 18px; color: #F59E0B;">${location}</p>
+        <p><strong>${escapeHtml(beerName)}</strong> was just spotted at:</p>
+        <p style="font-size: 18px; color: #F59E0B;">${escapeHtml(location)}</p>
         <a href="${config.FRONTEND_URL}/sightings" style="display: inline-block; padding: 12px 24px; background-color: #F59E0B; color: white; text-decoration: none; border-radius: 6px;">View Sighting</a>
         <p>Happy hunting!<br>The BrewIQ Team</p>
       `,
@@ -57,7 +66,7 @@ export const emailService = {
       to,
       subject: 'Welcome to BrewIQ! 🍺',
       html: `
-        <h1>Welcome to BrewIQ, ${username}!</h1>
+        <h1>Welcome to BrewIQ, ${escapeHtml(username)}!</h1>
         <p>Thanks for joining the smartest beer community on the planet.</p>
         <h2>Get Started:</h2>
         <ul>

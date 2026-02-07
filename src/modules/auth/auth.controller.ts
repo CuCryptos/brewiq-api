@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
+import passport from 'passport';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import * as authService from './auth.service.js';
 import { redis } from '../../config/redis.js';
@@ -14,6 +15,7 @@ import type {
 import { config } from '../../config/index.js';
 
 const OAUTH_CODE_EXPIRY = 60; // 60 seconds TTL for one-time codes
+const OAUTH_STATE_EXPIRY = 600; // 10 minutes TTL for OAuth state
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const input: RegisterInput = req.body;
@@ -87,7 +89,30 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   res.redirect(`${config.FRONTEND_URL}/login?verified=true`);
 });
 
+export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
+  const state = uuid();
+  await redis.setex(`oauth_state:${state}`, OAUTH_STATE_EXPIRY, '1');
+  passport.authenticate('google', { scope: ['profile', 'email'], state })(req, res);
+});
+
+export const githubAuth = asyncHandler(async (req: Request, res: Response) => {
+  const state = uuid();
+  await redis.setex(`oauth_state:${state}`, OAUTH_STATE_EXPIRY, '1');
+  passport.authenticate('github', { scope: ['user:email'], state })(req, res);
+});
+
 export const googleCallback = asyncHandler(async (req: Request, res: Response) => {
+  const state = req.query.state as string | undefined;
+  if (!state) {
+    throw ApiError.badRequest('Invalid OAuth state - possible CSRF attack');
+  }
+  const stateKey = `oauth_state:${state}`;
+  const valid = await redis.get(stateKey);
+  if (!valid) {
+    throw ApiError.badRequest('Invalid OAuth state - possible CSRF attack');
+  }
+  await redis.del(stateKey);
+
   const user = req.user as any;
   const result = await authService.findOrCreateOAuthUser('google', {
     id: user.id,
@@ -109,6 +134,17 @@ export const googleCallback = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const githubCallback = asyncHandler(async (req: Request, res: Response) => {
+  const state = req.query.state as string | undefined;
+  if (!state) {
+    throw ApiError.badRequest('Invalid OAuth state - possible CSRF attack');
+  }
+  const stateKey = `oauth_state:${state}`;
+  const valid = await redis.get(stateKey);
+  if (!valid) {
+    throw ApiError.badRequest('Invalid OAuth state - possible CSRF attack');
+  }
+  await redis.del(stateKey);
+
   const user = req.user as any;
   const result = await authService.findOrCreateOAuthUser('github', {
     id: user.id,

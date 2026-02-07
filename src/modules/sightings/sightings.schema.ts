@@ -26,10 +26,18 @@ export const sightingQuerySchema = paginationSchema.extend({
   verified: z.coerce.boolean().optional(),
 });
 
+export const nearbySightingsSchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  radius: z.coerce.number().min(0.1).max(500).default(25),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export const confirmSightingSchema = z.object({
   stillAvailable: z.boolean().default(true),
 });
 
 export type CreateSightingInput = z.infer<typeof createSightingSchema>;
 export type SightingQueryInput = z.infer<typeof sightingQuerySchema>;
+export type NearbySightingsInput = z.infer<typeof nearbySightingsSchema>;
 export type ConfirmSightingInput = z.infer<typeof confirmSightingSchema>;

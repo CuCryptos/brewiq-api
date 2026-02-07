@@ -37,10 +37,7 @@ router.get('/me', authenticate, authController.me);
 router.post('/oauth/exchange', authController.exchangeOAuthCode);
 
 // Google OAuth
-router.get(
-  '/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] }),
-);
+router.get('/google', authController.googleAuth);
 router.get(
   '/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/login' }),
@@ -48,10 +45,7 @@ router.get(
 );
 
 // GitHub OAuth
-router.get(
-  '/github',
-  passport.authenticate('github', { scope: ['user:email'] }),
-);
+router.get('/github', authController.githubAuth);
 router.get(
   '/github/callback',
   passport.authenticate('github', { session: false, failureRedirect: '/login' }),
