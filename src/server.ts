@@ -27,6 +27,7 @@ import checkinRoutes from './modules/checkins/checkins.routes.js';
 import notificationRoutes from './modules/notifications/notifications.routes.js';
 import leaderboardRoutes from './modules/leaderboard/leaderboard.routes.js';
 import subscriptionRoutes from './modules/subscriptions/subscriptions.routes.js';
+import imageRoutes from './modules/images/images.routes.js';
 
 export function createApp(): { app: Express; io: SocketServer; httpServer: ReturnType<typeof createServer> } {
   const app = express();
@@ -156,6 +157,7 @@ export function createApp(): { app: Express; io: SocketServer; httpServer: Retur
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/leaderboard', leaderboardRoutes);
   app.use('/api/subscriptions', subscriptionRoutes);
+  app.use('/api/images', imageRoutes);
 
   // 404 handler
   app.use(notFoundHandler);

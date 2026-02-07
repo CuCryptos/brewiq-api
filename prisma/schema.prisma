@@ -238,6 +238,7 @@ model Review {
   mouthfeel       Float?
   overall         Float?
   servingType     String?    // draft, can, bottle, etc.
+  imageUrl        String?
   helpfulCount    Int        @default(0)
   isVerified      Boolean    @default(false) // from confirmed scan
   createdAt       DateTime   @default(now())

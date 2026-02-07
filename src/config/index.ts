@@ -26,6 +26,9 @@ const envSchema = z.object({
   // Anthropic
   ANTHROPIC_API_KEY: z.string().startsWith('sk-ant-'),
 
+  // Gemini (Google AI)
+  GEMINI_API_KEY: z.string().optional(),
+
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
