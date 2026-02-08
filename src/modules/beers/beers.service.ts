@@ -12,6 +12,29 @@ type BeerWithRelations = Beer & {
   _count: { reviews: number; sightings: number };
 };
 
+// Transform Prisma beer to API response shape (reviewCount, averageRating)
+function transformBeer(beer: BeerWithRelations, averageRating: number = 0) {
+  const { _count, ...rest } = beer;
+  return {
+    ...rest,
+    reviewCount: _count?.reviews || 0,
+    sightingCount: _count?.sightings || 0,
+    averageRating: Math.round(averageRating * 10) / 10,
+  };
+}
+
+async function attachAverageRatings(beers: BeerWithRelations[]) {
+  if (beers.length === 0) return [];
+  const beerIds = beers.map(b => b.id);
+  const avgRatings = await prisma.review.groupBy({
+    by: ['beerId'],
+    where: { beerId: { in: beerIds } },
+    _avg: { rating: true },
+  });
+  const avgMap = new Map(avgRatings.map(r => [r.beerId, r._avg.rating || 0]));
+  return beers.map(b => transformBeer(b, avgMap.get(b.id) || 0));
+}
+
 export async function createBeer(input: CreateBeerInput): Promise<Beer> {
   // Verify brewery exists
   const brewery = await prisma.brewery.findUnique({
@@ -43,27 +66,33 @@ export async function createBeer(input: CreateBeerInput): Promise<Beer> {
   });
 }
 
-export async function getBeerBySlug(slug: string): Promise<BeerWithRelations> {
-  const beer = await prisma.beer.findUnique({
-    where: { slug },
-    include: {
-      brewery: {
-        select: { id: true, name: true, slug: true },
+export async function getBeerBySlug(slug: string) {
+  const [beer, avgResult] = await Promise.all([
+    prisma.beer.findUnique({
+      where: { slug },
+      include: {
+        brewery: {
+          select: { id: true, name: true, slug: true },
+        },
+        _count: {
+          select: { reviews: true, sightings: true },
+        },
       },
-      _count: {
-        select: { reviews: true, sightings: true },
-      },
-    },
-  });
+    }),
+    prisma.review.aggregate({
+      where: { beer: { slug } },
+      _avg: { rating: true },
+    }),
+  ]);
 
   if (!beer) {
     throw ApiError.notFound('Beer not found');
   }
 
-  return beer;
+  return transformBeer(beer, avgResult._avg.rating || 0);
 }
 
-export async function getBeers(query: BeerQueryInput): Promise<PaginatedResult<BeerWithRelations>> {
+export async function getBeers(query: BeerQueryInput) {
   const where: Prisma.BeerWhereInput = {
     isRetired: false,
   };
@@ -124,7 +153,8 @@ export async function getBeers(query: BeerQueryInput): Promise<PaginatedResult<B
     prisma.beer.count({ where }),
   ]);
 
-  return paginate(beers, total, query);
+  const transformed = await attachAverageRatings(beers);
+  return paginate(transformed, total, query);
 }
 
 export async function updateBeer(slug: string, input: UpdateBeerInput): Promise<Beer> {
@@ -172,7 +202,7 @@ export async function deleteBeer(slug: string): Promise<void> {
   });
 }
 
-export async function getTrendingBeers(limit = 10): Promise<BeerWithRelations[]> {
+export async function getTrendingBeers(limit = 10) {
   const cacheKey = `trending_beers:${limit}`;
   const cached = await redis.get(cacheKey);
   if (cached) {
@@ -206,9 +236,10 @@ export async function getTrendingBeers(limit = 10): Promise<BeerWithRelations[]>
     take: limit,
   });
 
-  await redis.setex(cacheKey, 300, JSON.stringify(beers));
+  const transformed = await attachAverageRatings(beers);
+  await redis.setex(cacheKey, 300, JSON.stringify(transformed));
 
-  return beers;
+  return transformed;
 }
 
 export async function getBeerReviews(slug: string, query: BeerQueryInput) {
@@ -235,7 +266,13 @@ export async function getBeerReviews(slug: string, query: BeerQueryInput) {
     prisma.review.count({ where: { beerId: beer.id } }),
   ]);
 
-  return paginate(reviews, total, query);
+  // Transform user.avatarUrl -> user.avatar to match frontend type
+  const transformed = reviews.map(r => {
+    const { avatarUrl, ...userRest } = r.user;
+    return { ...r, user: { ...userRest, avatar: avatarUrl } };
+  });
+
+  return paginate(transformed, total, query);
 }
 
 export async function saveBeer(userId: string, slug: string): Promise<void> {
