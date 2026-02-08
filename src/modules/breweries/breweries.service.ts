@@ -10,6 +10,17 @@ type BreweryWithCounts = Brewery & {
   _count: { beers: number };
 };
 
+// Transform Prisma brewery to API response shape matching frontend types
+function transformBrewery(brewery: BreweryWithCounts) {
+  const { _count, imageUrl, ...rest } = brewery;
+  return {
+    ...rest,
+    imageUrl,
+    coverImageUrl: imageUrl,
+    beersCount: _count?.beers || 0,
+  };
+}
+
 export async function createBrewery(input: CreateBreweryInput): Promise<Brewery> {
   const baseSlug = slugify(input.name, { lower: true, strict: true });
   const slug = await generateUniqueSlug(baseSlug);
@@ -37,7 +48,7 @@ export async function createBrewery(input: CreateBreweryInput): Promise<Brewery>
   });
 }
 
-export async function getBreweryBySlug(slug: string): Promise<BreweryWithCounts> {
+export async function getBreweryBySlug(slug: string) {
   const brewery = await prisma.brewery.findUnique({
     where: { slug },
     include: {
@@ -51,10 +62,10 @@ export async function getBreweryBySlug(slug: string): Promise<BreweryWithCounts>
     throw ApiError.notFound('Brewery not found');
   }
 
-  return brewery;
+  return transformBrewery(brewery);
 }
 
-export async function getBreweries(query: BreweryQueryInput): Promise<PaginatedResult<BreweryWithCounts>> {
+export async function getBreweries(query: BreweryQueryInput) {
   const where: Prisma.BreweryWhereInput = {};
 
   if (query.search) {
@@ -127,7 +138,8 @@ export async function getBreweries(query: BreweryQueryInput): Promise<PaginatedR
     prisma.brewery.count({ where }),
   ]);
 
-  return paginate(breweries, total, query);
+  const transformed = breweries.map(transformBrewery);
+  return paginate(transformed, total, query);
 }
 
 export async function updateBrewery(slug: string, input: UpdateBreweryInput): Promise<Brewery> {
